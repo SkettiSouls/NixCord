@@ -12,7 +12,7 @@ in
     # autoUpdate = mkEnableOption "";
     # autoUpdateNotification = mkEnableOption "";
 
-    enableReactDevTools = mkEnableOption "React Developer Tools";
+    enableReactDevtools = mkEnableOption "React Developer Tools";
 
     frameless = mkEnableOption "Disable the window frame";
 
