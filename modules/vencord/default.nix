@@ -40,7 +40,6 @@ let
             "width": 1892,
             "height": 1052
         },
-        "displayid": 33
     }
   '';
 
