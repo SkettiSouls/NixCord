@@ -1,6 +1,7 @@
 { config, lib, pkgs, ... }:
 let
   inherit (lib)
+    hm
     mapAttrs'
     mkDefault
     mkEnableOption
@@ -116,70 +117,79 @@ in
       then mkDefault vesktop.package
       else mkDefault (pkgs.discord.override { withVencord = true; });
 
-    home.packages = [ cfg.package ];
+    home = {
+      packages = [ cfg.package ];
 
-    home.file = mkMerge [
-      (mapAttrs'
-        (name: attrs: nameValuePair
-          ".config/Vencord/themes/${name}.css"
-          {
-            # TODO: Prevent both text and source being set
-            text = mkIf (attrs.text != "") attrs.text;
-            source = mkIf (attrs.source != "") attrs.source;
-          }
-        )
-      cfg.themes)
+      # Ensure `firstLaunch = false`, without making `state.json` immutable.
+      activation = mkIf vesktop.enable {
+        setVesktopState = hm.dag.entryAfter ["writeBoundary"] ''
+          run sed -i '2s/true/false/' ${config.home.homeDirectory}/.config/vesktop/state.json
+        '';
+      };
 
-      {
-        ".config/Vencord/settings/settings.json".text = toJSON (recursiveUpdate
-          cfg.settings
-          {
-            enabledThemes = lib.mapAttrsToList (name: attrs: (if attrs.enable then name + ".css" else "")) cfg.themes;
-            plugins =
-              # Convert enabled plugins list to "plugin":{ "enabled" = true }
-              (listToAttrs (map
-                (plugins: nameValuePair
-                  plugins
-                  { enabled = true; }
-                )
-              cfg.enabledPlugins)) //
-              # Make cfg.plugins map to JSON correctly.
-              (mapAttrs'
-                (name: plugin: nameValuePair
-                  name
-                  ({ enabled = plugin.enable; } // plugin.settings)
-                )
-              cfg.plugins);
-          }
-        );
-      }
-
-      # Vesktop settings are taken from vencord settings to allow using vesktop and 
-      # other clients simultaneously. (i.e. using `nix run nixpkgs#discord` for testing)
-      (if vesktop.enable
-        then (mapAttrs'
+      file = mkMerge [
+        (mapAttrs'
           (name: attrs: nameValuePair
-            ".config/vesktop/themes/${name}.css"
+            ".config/Vencord/themes/${name}.css"
             {
+              # TODO: Prevent both text and source being set
               text = mkIf (attrs.text != "") attrs.text;
               source = mkIf (attrs.source != "") attrs.source;
             }
           )
         cfg.themes)
-      else {})
 
-      (if vesktop.enable
-        then {
-          # Vesktop can't work without write access to `state.json`, and will error on first launch if settings.json is read-only.
-          # For now, when running for the first time you must hit the 'submit' button, and then close and reopen vesktop.
-
-          # TODO: Find a way around 'Welcome to Vesktop' menu.
-          # ALTERNATIVE: Find a way to disable vesktop writing window bounds to state.json.
-
-          ".config/vesktop/settings.json".text = toJSON vesktop.state;
-          ".config/vesktop/settings/settings.json".text = config.home.file.".config/Vencord/settings/settings.json".text;
+        {
+          ".config/Vencord/settings/settings.json".text = toJSON (recursiveUpdate
+            cfg.settings
+            {
+              enabledThemes = lib.mapAttrsToList (name: attrs: (if attrs.enable then name + ".css" else "")) cfg.themes;
+              plugins =
+                # Convert enabled plugins list to "plugin":{ "enabled" = true }
+                (listToAttrs (map
+                  (plugins: nameValuePair
+                    plugins
+                    { enabled = true; }
+                  )
+                cfg.enabledPlugins)) //
+                # Make cfg.plugins map to JSON correctly.
+                (mapAttrs'
+                  (name: plugin: nameValuePair
+                    name
+                    ({ enabled = plugin.enable; } // plugin.settings)
+                  )
+                cfg.plugins);
+            }
+          );
         }
-      else {})
-    ];
+
+        # Vesktop settings are taken from vencord settings to allow using vesktop and 
+        # other clients simultaneously. (i.e. using `nix run nixpkgs#discord` for testing)
+        (if vesktop.enable
+          then (mapAttrs'
+            (name: attrs: nameValuePair
+              ".config/vesktop/themes/${name}.css"
+              {
+                text = mkIf (attrs.text != "") attrs.text;
+                source = mkIf (attrs.source != "") attrs.source;
+              }
+            )
+          cfg.themes)
+        else {})
+
+        (if vesktop.enable
+          then {
+            # Vesktop can't work without write access to `state.json`, and will error on first launch if settings.json is read-only.
+            # For now, when running for the first time you must hit the 'submit' button, and then close and reopen vesktop.
+
+            # TODO: Find a way around 'Welcome to Vesktop' menu.
+            # ALTERNATIVE: Find a way to disable vesktop writing window bounds to state.json.
+
+            ".config/vesktop/settings.json".text = toJSON vesktop.state;
+            ".config/vesktop/settings/settings.json".text = config.home.file.".config/Vencord/settings/settings.json".text;
+          }
+        else {})
+      ];
+    };
   };
 }
