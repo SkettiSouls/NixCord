@@ -31,6 +31,19 @@ let
     };
   };
 
+  stateFile = pkgs.writeText "state.json" ''
+    {
+        "firstLaunch": false,
+        "windowBounds": {
+            "x": 14,
+            "y": 14,
+            "width": 1892,
+            "height": 1052
+        },
+        "displayid": 33
+    }
+  '';
+
   cfg = config.nixcord.vencord;
   configDir = {
     vencord = ".config/Vencord";
@@ -99,7 +112,6 @@ in
       enable = mkEnableOption "Vesktop client";
       package = mkPackageOption pkgs "vesktop" {};
 
-      # Semi-cursed
       state = mkOption {
         type = types.submodule ./state.nix;
         description = ''
@@ -120,10 +132,20 @@ in
     home = {
       packages = [ cfg.package ];
 
+      # Vesktop crashes if `state.json` is immutable, and will error if
+      # `settings.json` is immutable while `firstLaunch = true`.
+
       # Ensure `firstLaunch = false`, without making `state.json` immutable.
       activation = mkIf vesktop.enable {
-        setVesktopState = hm.dag.entryAfter ["writeBoundary"] ''
-          run sed -i '2s/true/false/' ${config.home.homeDirectory}/.config/vesktop/state.json
+        setVesktopState = let
+          statePath = "${config.home.homeDirectory}/.config/vesktop/state.json";
+        in hm.dag.entryAfter ["writeBoundary"] ''
+          if [[ -f ${statePath} ]]; then
+            run sed -i '2s/true/false/' ${statePath}
+          else
+            run cp ${stateFile} ${statePath}
+            chmod 644 ${statePath}
+          fi
         '';
       };
 
@@ -179,12 +201,6 @@ in
 
         (if vesktop.enable
           then {
-            # Vesktop can't work without write access to `state.json`, and will error on first launch if settings.json is read-only.
-            # For now, when running for the first time you must hit the 'submit' button, and then close and reopen vesktop.
-
-            # TODO: Find a way around 'Welcome to Vesktop' menu.
-            # ALTERNATIVE: Find a way to disable vesktop writing window bounds to state.json.
-
             ".config/vesktop/settings.json".text = toJSON vesktop.state;
             ".config/vesktop/settings/settings.json".text = config.home.file.".config/Vencord/settings/settings.json".text;
           }
