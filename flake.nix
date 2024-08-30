@@ -10,7 +10,7 @@
 
   outputs = { self, nixpkgs, ... }:
   {
-    nixosModules = {
+    homeModules = {
       vencord = import ./modules/vencord;
 
       default = self.nixosModules.vencord;

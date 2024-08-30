@@ -50,6 +50,7 @@ let
   };
 in
 {
+  # FIXME: used but not defined (nix repl error, builds fine)
   options.nixcord = {
     vencord = {
       enable = mkOption {
@@ -124,6 +125,7 @@ in
   };
 
   config = mkIf cfg.enable {
+    # TODO: Allow using package from `inputs.nixpkgs.follows` (removes the need for an overlay)
     nixcord.vencord.package = if vesktop.enable
       then mkDefault vesktop.package
       else mkDefault (pkgs.discord.override { withVencord = true; });
