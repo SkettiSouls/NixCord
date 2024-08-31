@@ -75,8 +75,8 @@ in
       };
 
       logLimit = mkOption {
-        type = types.int;
-        default = types.ints.between 0 200;
+        type = types.ints.between 0 200;
+        default = 50;
         description = ''
           Number of notifications to save in the log before removing old ones.
           Set to 0 to disable notification logging, and set to 200 to keep
