@@ -68,7 +68,15 @@ in
         '';
       };
 
-      package = mkPackageOption pkgs "Discord package" { default = null; };
+      package = mkPackageOption pkgs "discord" {};
+
+      finalPackage = mkOption {
+        type = types.package;
+        readOnly = true;
+        description = ''
+          Package with vencord overrides applied.
+        '';
+      };
 
       plugins = mkOption {
         type = with types; attrsOf pluginSubmodule;
@@ -126,12 +134,16 @@ in
 
   config = mkIf cfg.enable {
     # TODO: Allow using package from `inputs.nixpkgs.follows` (removes the need for an overlay)
-    nixcord.vencord.package = if vesktop.enable
-      then mkDefault vesktop.package
-      else mkDefault (pkgs.discord.override { withVencord = true; });
+
+    # Support using `autoUpdate`
+    nixcord.vencord.finalPackage = if vesktop.enable && cfg.settings.autoUpdate == false then
+      (vesktop.package.override { withSystemVencord = true; }) # Use vencord from nixpkgs
+    else if vesktop.enable && cfg.settings.autoUpdate then
+      vesktop.package # Allow vencord to manage itself
+    else (cfg.package.override { withVencord = true; });
 
     home = {
-      packages = [ cfg.package ];
+      packages = [ cfg.finalPackage ];
 
       # Vesktop crashes if `state.json` is immutable, and will error if
       # `settings.json` is immutable while `firstLaunch = true`.

@@ -8,9 +8,8 @@ let
 in
 {
   options = {
-    # TODO: Support autoUpdate
-    # autoUpdate = mkEnableOption "";
-    # autoUpdateNotification = mkEnableOption "";
+    autoUpdate = mkEnableOption "Automatic vencord updates";
+    autoUpdateNotification = mkEnableOption "Notify about new versions of vencord";
 
     enableReactDevtools = mkEnableOption "React Developer Tools";
 
